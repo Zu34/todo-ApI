@@ -1,4 +1,5 @@
 const Task = require('../models/Task');
+const { Parser } = require('json2csv'); 
 
 exports.createTask = async (req, res, next) => {
   try {
@@ -107,6 +108,62 @@ exports.getTasksGroupedByGoal = async (req, res, next) => {
     });
 
     res.json(grouped);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.exportTasksByGoal = async (req, res, next) => {
+  try {
+    const format = req.query.format || 'json';
+    const tasks = await Task.find({ user: req.user.id })
+      .populate('goal', 'title')
+      .sort({ createdAt: 1 });
+
+    // Group tasks by goal title
+    const grouped = {};
+    tasks.forEach(task => {
+      const goalTitle = task.goal?.title || 'Unassigned';
+      if (!grouped[goalTitle]) {
+        grouped[goalTitle] = [];
+      }
+
+      grouped[goalTitle].push({
+        id: task._id,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        createdAt: task.createdAt
+      });
+    });
+
+    // If JSON requested
+    if (format === 'json') {
+      return res.json(grouped);
+    }
+
+    // If CSV requested
+    const csvRows = [];
+    for (const [goalTitle, tasks] of Object.entries(grouped)) {
+      tasks.forEach(task => {
+        csvRows.push({
+          Goal: goalTitle,
+          Title: task.title,
+          Status: task.status,
+          Priority: task.priority,
+          DueDate: task.dueDate,
+          CreatedAt: task.createdAt
+        });
+      });
+    }
+
+    const parser = new Parser();
+    const csv = parser.parse(csvRows);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment('tasks_export.csv');
+    return res.send(csv);
   } catch (err) {
     next(err);
   }
