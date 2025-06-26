@@ -61,6 +61,10 @@ const TaskSchema = new mongoose.Schema(
   ref: 'Goal',
   default: null
 },
+reminderSent: {
+  type: Boolean,
+  default: false
+},
     history: [{
   previous: Object,
   updatedAt: Date,
@@ -75,10 +79,8 @@ const TaskSchema = new mongoose.Schema(
   }
 );
 
-// ✅ Text search support
 TaskSchema.index({ title: 'text', description: 'text' });
 
-// ✅ Pre-update hook to snapshot the old version into history
 TaskSchema.pre('findOneAndUpdate', async function (next) {
   const taskBefore = await this.model.findOne(this.getQuery());
 
@@ -99,5 +101,10 @@ TaskSchema.pre('findOneAndUpdate', async function (next) {
 
   next();
 });
-
+TaskSchema.pre('save', function (next) {
+  if (this.isModified('dueDate') || this.isModified('status')) {
+    this.reminderSent = false;
+  }
+  next();
+});
 module.exports = mongoose.model('Task', TaskSchema);
