@@ -56,6 +56,11 @@ const TaskSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    goal: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Goal',
+  default: null
+},
     history: [{
   previous: Object,
   updatedAt: Date,

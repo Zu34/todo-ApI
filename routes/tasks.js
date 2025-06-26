@@ -1,5 +1,6 @@
 const express = require('express');
 const auth = require('../middleware/auth');
+
 const {
   createTask,
   getTasks,
@@ -10,6 +11,7 @@ const {
 
 const router = express.Router();
 router.get('/unassigned', auth, getUnassignedTasks);
+router.get('/by-goal', auth, getTasksGroupedByGoal);
 
 router.post('/', auth, createTask);
 router.get('/', auth, getTasks);

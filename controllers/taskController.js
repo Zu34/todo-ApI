@@ -56,6 +56,18 @@ exports.updateTask = async (req, res, next) => {
       error.statusCode = 404;
       return next(error);
     }
+    // After task update is saved
+if (updatedTask.goal) {
+  const goalTasks = await Task.find({ goal: updatedTask.goal });
+  const allCompleted = goalTasks.every(t => t.status === 'completed');
+
+  if (allCompleted) {
+    await Goal.findByIdAndUpdate(updatedTask.goal, { status: 'completed' });
+  } else {
+    await Goal.findByIdAndUpdate(updatedTask.goal, { status: 'active' });
+  }
+}
+
 
     res.json(updated);
   } catch (err) {
@@ -74,6 +86,27 @@ exports.deleteTask = async (req, res, next) => {
     }
 
     res.json({ msg: 'Task deleted' });
+  } catch (err) {
+    next(err);
+  }
+};
+exports.getTasksGroupedByGoal = async (req, res, next) => {
+  try {
+    const tasks = await Task.find({ user: req.user.id })
+      .populate('goal', 'title')
+      .sort({ createdAt: -1 });
+
+    const grouped = {};
+
+    tasks.forEach(task => {
+      const goalTitle = task.goal?.title || 'Unassigned';
+      if (!grouped[goalTitle]) {
+        grouped[goalTitle] = [];
+      }
+      grouped[goalTitle].push(task);
+    });
+
+    res.json(grouped);
   } catch (err) {
     next(err);
   }
