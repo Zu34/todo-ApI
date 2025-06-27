@@ -65,6 +65,21 @@ reminderSent: {
   type: Boolean,
   default: false
 },
+checklist: [
+  {
+    text: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    done: {
+      type: Boolean,
+      default: false
+    }
+  }
+]
+
+,
     history: [{
   previous: Object,
   updatedAt: Date,
