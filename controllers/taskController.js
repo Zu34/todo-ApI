@@ -1,7 +1,7 @@
 const Task = require('../models/Task');
 const { Parser } = require('json2csv'); 
 const { createEvents } = require('ics');
-
+const mongoose = require('mongoose');
 
 
 exports.createTask = async (req, res, next) => {
@@ -174,17 +174,29 @@ exports.exportTasksByGoal = async (req, res, next) => {
 
 exports.exportCalendarICS = async (req, res, next) => {
   try {
-    const { fromDate, toDate } = req.query;
+    const { fromDate, toDate, projectId, tags } = req.query;
 
     const query = {
       user: req.user.id,
       dueDate: { $ne: null }
     };
 
+    // Date filters
     if (fromDate || toDate) {
       query.dueDate = {};
       if (fromDate) query.dueDate.$gte = new Date(fromDate);
       if (toDate) query.dueDate.$lte = new Date(toDate);
+    }
+
+    // Project filter
+    if (projectId && mongoose.Types.ObjectId.isValid(projectId)) {
+      query.project = projectId;
+    }
+
+    // Tag filter (match any tag)
+    if (tags) {
+      const tagArray = Array.isArray(tags) ? tags : tags.split(',');
+      query.tags = { $in: tagArray };
     }
 
     const tasks = await Task.find(query).sort({ dueDate: 1 });
