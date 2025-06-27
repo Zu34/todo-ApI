@@ -1,5 +1,8 @@
 const Task = require('../models/Task');
 const { Parser } = require('json2csv'); 
+const { createEvents } = require('ics');
+
+
 
 exports.createTask = async (req, res, next) => {
   try {
@@ -164,6 +167,54 @@ exports.exportTasksByGoal = async (req, res, next) => {
     res.header('Content-Type', 'text/csv');
     res.attachment('tasks_export.csv');
     return res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.exportCalendarICS = async (req, res, next) => {
+  try {
+    const { fromDate, toDate } = req.query;
+
+    const query = {
+      user: req.user.id,
+      dueDate: { $ne: null }
+    };
+
+    if (fromDate || toDate) {
+      query.dueDate = {};
+      if (fromDate) query.dueDate.$gte = new Date(fromDate);
+      if (toDate) query.dueDate.$lte = new Date(toDate);
+    }
+
+    const tasks = await Task.find(query).sort({ dueDate: 1 });
+
+    const events = tasks.map(task => {
+      const due = new Date(task.dueDate);
+      return {
+        start: [
+          due.getFullYear(),
+          due.getMonth() + 1,
+          due.getDate(),
+          due.getHours(),
+          due.getMinutes()
+        ],
+        duration: { hours: 1 },
+        title: task.title,
+        description: task.description || '',
+        status: task.status === 'completed' ? 'CONFIRMED' : 'TENTATIVE'
+      };
+    });
+
+    const { error, value } = createEvents(events);
+    if (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'Failed to generate calendar' });
+    }
+
+    res.setHeader('Content-Type', 'text/calendar');
+    res.setHeader('Content-Disposition', 'attachment; filename=tasks.ics');
+    res.send(value);
   } catch (err) {
     next(err);
   }
